@@ -15,12 +15,17 @@ DEPT_CODE = "136"  # 疼痛科门诊（糖尿病周围神经病专区）
 QY = "1"  # 主院区
 WATCH_DOCTORS: list[str] = ["张小洺", "杨东"]  # 留空则监控全部
 
-PAGE_URL = "https://www.whuh.com/yygh/ysxz.jsp?urltype=tree.TreeTempUrl&wbtreeid=18781"
-
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Content-Type": "application/x-www-form-urlencoded",
     "Referer": "https://www.whuh.com/yygh/ysxz.jsp?urltype=tree.TreeTempUrl&wbtreeid=18781",
     "Origin": "https://www.whuh.com",
+}
+
+# 存储用户提供的登录 Cookie
+auth_cookie: dict = {
+    "JSESSIONID": "",
+    "updated_at": None,
 }
 
 # 爬虫运行状态
@@ -32,10 +37,29 @@ scraper_status = {
 }
 
 
+def set_cookie(jsessionid: str):
+    """更新登录 Cookie"""
+    auth_cookie["JSESSIONID"] = jsessionid
+    auth_cookie["updated_at"] = datetime.now().isoformat()
+
+
+def get_cookie_status() -> dict:
+    """获取 Cookie 状态"""
+    return {
+        "has_cookie": bool(auth_cookie["JSESSIONID"]),
+        "updated_at": auth_cookie["updated_at"],
+    }
+
+
 async def scrape_doctor_schedules():
     """抓取协和医院排班号源信息并存入数据库"""
     if scraper_status["running"]:
         logger.warning("爬虫正在运行中，跳过本次执行")
+        return
+
+    if not auth_cookie["JSESSIONID"]:
+        scraper_status["last_status"] = "error: 未设置登录 Cookie，请先在设置页面配置"
+        scraper_status["last_run"] = datetime.now().isoformat()
         return
 
     scraper_status["running"] = True
@@ -52,21 +76,20 @@ async def scrape_doctor_schedules():
     }
 
     try:
-        async with httpx.AsyncClient(timeout=15, headers=HEADERS, follow_redirects=True) as client:
-            # 先访问页面获取 session cookie
-            await client.get(PAGE_URL)
-            # 再请求排班数据
+        cookies = {"JSESSIONID": auth_cookie["JSESSIONID"]}
+        async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.post(
-                API_URL,
-                data=payload,
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                API_URL, data=payload, headers=HEADERS, cookies=cookies
             )
             resp.raise_for_status()
             result = resp.json()
 
         if result.get("code") != 1001:
-            logger.warning("接口返回异常: %s", result.get("msg"))
-            scraper_status["last_status"] = f"error: {result.get('msg')}"
+            msg = result.get("msg", "未知错误")
+            logger.warning("接口返回异常: %s", msg)
+            scraper_status["last_status"] = f"error: {msg}"
+            if "登录" in msg:
+                scraper_status["last_status"] += "（Cookie 已过期，请重新设置）"
             return
 
         schedule_list = result.get("data", [])
@@ -93,14 +116,12 @@ async def scrape_doctor_schedules():
                 existing = (await session.execute(stmt)).scalar_one_or_none()
 
                 if existing:
-                    # 更新已有记录
                     existing.available_remain_num = item.get("available_remain_num", 0)
                     existing.available_total_num = item.get("available_total_num", 0)
                     existing.schedule_status = item.get("schedule_status", 0)
                     existing.positional_titles = item.get("positional_titles", "")
                     existing.updated_at = datetime.now()
                 else:
-                    # 插入新记录
                     schedule = DoctorSchedule(
                         doctor_name=doc_name,
                         positional_titles=item.get("positional_titles", ""),

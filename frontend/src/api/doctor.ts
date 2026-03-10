@@ -21,3 +21,13 @@ export async function getScraperStatus(): Promise<ScraperStatus> {
   const { data } = await client.get('/doctor/scraper/status')
   return data
 }
+
+export async function setCookie(jsessionid: string): Promise<{ message: string }> {
+  const { data } = await client.post('/doctor/cookie', { jsessionid })
+  return data
+}
+
+export async function getCookieStatus(): Promise<{ has_cookie: boolean; updated_at: string | null }> {
+  const { data } = await client.get('/doctor/cookie/status')
+  return data
+}

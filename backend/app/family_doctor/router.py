@@ -1,6 +1,7 @@
 import asyncio
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.deps import get_db
@@ -9,9 +10,18 @@ from app.family_doctor.schemas import (
     DoctorScheduleListOut,
     ScraperStatusOut,
 )
-from app.family_doctor.scraper import scrape_doctor_schedules, scraper_status
+from app.family_doctor.scraper import (
+    get_cookie_status,
+    scrape_doctor_schedules,
+    scraper_status,
+    set_cookie,
+)
 
 router = APIRouter()
+
+
+class CookieInput(BaseModel):
+    jsessionid: str
 
 
 @router.get("/schedules", response_model=DoctorScheduleListOut)
@@ -35,6 +45,9 @@ async def run_scraper():
     """手动触发爬虫"""
     if scraper_status["running"]:
         return {"message": "爬虫正在运行中，请稍后再试"}
+    cookie = get_cookie_status()
+    if not cookie["has_cookie"]:
+        return {"message": "请先设置登录 Cookie"}
     asyncio.create_task(scrape_doctor_schedules())
     return {"message": "爬虫已启动"}
 
@@ -43,3 +56,16 @@ async def run_scraper():
 async def get_scraper_status():
     """获取爬虫运行状态"""
     return ScraperStatusOut(**scraper_status)
+
+
+@router.post("/cookie")
+async def update_cookie(data: CookieInput):
+    """设置医院登录 Cookie"""
+    set_cookie(data.jsessionid)
+    return {"message": "Cookie 已更新"}
+
+
+@router.get("/cookie/status")
+async def cookie_status():
+    """获取 Cookie 状态"""
+    return get_cookie_status()
