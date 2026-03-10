@@ -1,0 +1,26 @@
+version: "3.8"
+
+services:
+  api:
+    build: ./backend
+    container_name: family-manager-api
+    restart: always
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+    ports:
+      - "127.0.0.1:8005:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./backend/app:/app/app
+    networks:
+      - shared-net
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  shared-net:
+    external: true

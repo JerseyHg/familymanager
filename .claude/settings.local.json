@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /c/Users/zexig/OneDrive/Desktop/familymanager/backend/app/family_doctor)",
+      "Bash(mkdir -p /c/Users/zexig/OneDrive/Desktop/familymanager/backend/app/home_monitoring)",
+      "Bash(mkdir -p /c/Users/zexig/OneDrive/Desktop/familymanager/backend/app/common)",
+      "Bash(mkdir -p /c/Users/zexig/OneDrive/Desktop/familymanager/backend/alembic/versions)",
+      "Bash(mkdir -p /c/Users/zexig/OneDrive/Desktop/familymanager/frontend/src/api)",
+      "Bash(mkdir -p /c/Users/zexig/OneDrive/Desktop/familymanager/frontend/src/components)",
+      "Bash(mkdir -p /c/Users/zexig/OneDrive/Desktop/familymanager/frontend/src/pages/doctor)",
+      "Bash(mkdir -p /c/Users/zexig/OneDrive/Desktop/familymanager/frontend/src/types)",
+      "Bash(npm create vite@latest . -- --template react-ts)",
+      "Bash(rm -rf frontend)",
+      "Bash(npm create vite@latest frontend -- --template react-ts)",
+      "Bash(npm install antd @ant-design/icons react-router-dom axios dayjs)"
+    ]
+  }
+}
