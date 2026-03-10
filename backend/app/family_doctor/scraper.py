@@ -15,9 +15,10 @@ DEPT_CODE = "136"  # 疼痛科门诊（糖尿病周围神经病专区）
 QY = "1"  # 主院区
 WATCH_DOCTORS: list[str] = ["张小洺", "杨东"]  # 留空则监控全部
 
+PAGE_URL = "https://www.whuh.com/yygh/ysxz.jsp?urltype=tree.TreeTempUrl&wbtreeid=18781"
+
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    "Content-Type": "application/x-www-form-urlencoded",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     "Referer": "https://www.whuh.com/yygh/ysxz.jsp?urltype=tree.TreeTempUrl&wbtreeid=18781",
     "Origin": "https://www.whuh.com",
 }
@@ -51,8 +52,15 @@ async def scrape_doctor_schedules():
     }
 
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(API_URL, data=payload, headers=HEADERS)
+        async with httpx.AsyncClient(timeout=15, headers=HEADERS, follow_redirects=True) as client:
+            # 先访问页面获取 session cookie
+            await client.get(PAGE_URL)
+            # 再请求排班数据
+            resp = await client.post(
+                API_URL,
+                data=payload,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
             resp.raise_for_status()
             result = resp.json()
 
